@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APIs Test</title>
+
+    <style>
+        * {
+            font-family: Arial, serif;
+            padding: 0;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        body {
+            padding: 50px 0;
+        }
+
+        #groups-list, #services-list {
+            width: 70%;
+            margin-top: 20px;
+            margin-left: 15%;
+        }
+
+        button {
+            display: block;
+            text-decoration: none;
+            background-color: #eee;
+            color: black;
+            width: 80%;
+            padding: 5px 0;
+            margin: 10px 0 10px 10%;
+            font-weight: 600;
+            border: 2px solid red;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        #response-body, #response-info {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-weight: bold;
+            line-height: 1.5;
+        }
+
+        #use-body-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-title {
+            text-align: center;
+            color: blue;
+        }
+
+        .card {
+            background-color: #eee;
+            width: 80%;
+            margin-left: 8%;
+            margin-top: 20px;
+            padding: 5px 2%;
+            border-radius: 10px;
+        }
+
+        #endpoint {
+            text-align: center;
+            margin: 20px 15% 0 15%;
+            padding: 10px;
+            background-color: #dddd00;
+            border-radius: 20px;
+        }
+
+        #body-field {
+            width: 70%;
+            padding: 2%;
+            float: top;
+            tab-size: 4;
+            min-height: 250px;
+            overflow: scroll;
+            resize: vertical;
+            margin-top: 30px;
+            margin-left: 13%;
+            display: inline-block;
+            background: #222;
+            color: #dddd00;
+            outline: none;
+            font-family: Courier, sans-serif;
+            font-size: 14px;
+        }
+
+        table {
+        	border: 2px solid purple;
+        }
+
+        td {
+        	border: 2px solid black;
+        	font-weight: bold;
+        	padding: 5px;
+
+        }
+
+        .title {
+        	color: black;
+        }
+
+        .val {
+        	color: purple;
+        	width: 100%;
+        	padding-right: 10px;
+        }
+    </style>
+</head>
+
+<body>
+<h2 style="text-align: center; color: purple">MINI POSTMAN</h2>
+
+
+<label for="groups-list"></label><select id="groups-list" onchange="onGroupChanged()">
+    <option value="sqlite">SQLite</option>
+    <option value="preferences">Shared Preferences</option>
+    <option value="filesystem">Filesystem</option>
+    <option value="platform">Platform</option>
+</select>
+
+<label for="services-list"></label><select id="services-list" onchange="onServiceChanged()"></select>
+
+
+<div id="endpoint"></div>
+
+<label for="body-field"></label><textarea id="body-field" wrap="off" spellcheck="false" placeholder="BODY"></textarea>
+
+<label id="use-body-label">
+    <input type="checkbox" id="use-body-check" name="useBody" style="margin: 20px 10px 20px 0;">
+    Use Body
+</label>
+
+
+<button onclick="sendApi()">POST API</button>
+
+<div class="card">
+    <div class="card-body">
+        <table>
+            <thead>
+            <tr>
+                <td colspan="2"><h4 class="card-title">RESPONSE INFO</h4></td>
+            </tr>
+            </thead>
+
+            <tbody>
+            <tr>
+                <td class="title">STATUS</td>
+                <td class="val" id="status"></td>
+            </tr>
+
+            <tr>
+                <td class="title">STATUS_TEXT</td>
+                <td class="val" id="status-text"></td>
+            </tr>
+
+            <tr>
+                <td class="title">TYPE</td>
+                <td class="val" id="type"></td>
+            </tr>
+
+            <tr>
+                <td class="title">CONTENT_TYPE</td>
+                <td class="val" id="content-type"></td>
+            </tr>
+
+            <tr>
+                <td class="title">RESPONSE_TIME</td>
+                <td class="val" id="time"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h4 class="card-title">RESPONSE BODY</h4>
+        <pre id="response-body"></pre>
+    </div>
+</div>
+
+<button onclick="clearResponse()">CLEAR</button>
+
+
+
+<script>
+        let result = document.getElementById("response-body");
+        let endpoint = document.getElementById("endpoint");
+        let body = document.getElementById("body-field");
+        let useBody = document.getElementById("use-body-check");
+
+        let groupList = document.getElementById("groups-list");
+        let servicesList = document.getElementById("services-list");
+
+        let status = document.getElementById("status");
+        let statusText = document.getElementById("status-text");
+        let type = document.getElementById("type");
+        let contentType = document.getElementById("content-type");
+        let responseTime = document.getElementById("time");
+
+        const defaultBaseUrl = `${location.protocol}//${location.host}`;
+
+        let groupsMap = {
+            sqlite: [
+                {
+                    name: "insert",
+                    body: `{\n\t"table": "",\n\t"data": {\n\t\t"":""\n\t}\n}`,
+                    useBody: true
+                },
+                {
+                    name: "read",
+                    body: `{\n\t"table": "",\n\t"columns": [],\n\t"where": "",\n\t"whereArgs": []\n}`,
+                    useBody: true
+                },
+                {
+                    name: "update",
+                    body: `{\n\t"table": "",\n\t"data": {\n\t\t"":""\n\t},\n\t"where": "",\n\t"whereArgs": []\n}`,
+                    useBody: true
+                },
+                {
+                    name: "delete",
+                    body: `{\n\t"table": "",\n\t"where": "",\n\t"whereArgs": []\n}`,
+                    useBody: true
+                },
+                {
+                    name: "query",
+                    body: `{\n\t"sql": "",\n\t"args": []\n}`,
+                    useBody: true
+                },
+                {
+                    name: "execute",
+                    body: `{\n\t"sql": "",\n\t"args": []\n}`,
+                    useBody: true
+                }
+            ],
+
+            preferences: [
+                {
+                    name: "get-item",
+                    body: "",
+                    useBody: true
+                },
+
+                {
+                    name: "set-item",
+                    body: `{\n\t"key": "",\n\t"value": ""\n}`,
+                    useBody: true
+                },
+                {
+                    name: "remove-item",
+                    body: "",
+                    useBody: true
+                },
+                {
+                    name: "get-all-items",
+                    body: "",
+                    useBody: false
+                },
+                {
+                    name: "remove-all-items",
+                    body: "",
+                    useBody: false
+                }
+            ],
+
+            filesystem: [
+                {
+                    name: "info",
+                    body: "/storage/emulated/0//",
+                    useBody: true
+                },
+                {
+                    name: "delete",
+                    body: `{\n\t"path": "/storage/emulated/0//",\n\t"recursively": \n}`,
+                    useBody: true
+                },
+                {
+                    name: "create-file",
+                    body: `{\n\t"path": "/storage/emulated/0//",\n\t"recursively": \n}`,
+                    useBody: true
+                },
+                {
+                    name: "create-dir",
+                    body: `{\n\t"path": "/storage/emulated/0//",\n\t"recursively": \n}`,
+                    useBody: true
+                },
+                {
+                    name: "list-content",
+                    body: "/storage/emulated/0//",
+                    useBody: true
+                },
+                {
+                    name: "copy",
+                    body: `{\n\t"src": "/storage/emulated/0//",\n\t"dest": "/storage/emulated/0//",\n\t"overwrite": ,\n\t"recursively": \n}`,
+                    useBody: true
+                },
+                {
+                    name: "move",
+                    body: `{\n\t"src": "/storage/emulated/0//",\n\t"dest": "/storage/emulated/0//",\n\t"overwrite": \n}`,
+                    useBody: true
+                },
+                {
+                    name: "rename",
+                    body: `{\n\t"src": "/storage/emulated/0//",\n\t"dest": "/storage/emulated/0//",\n\t"overwrite": \n}`,
+                    useBody: true
+                },
+                {
+                    name: "read-string",
+                    body: "/storage/emulated/0//",
+                    useBody: true
+                },
+                {
+                    name: "read-bytes",
+                    body: "/storage/emulated/0//",
+                    useBody: true
+                },
+                {
+                    name: "write-string",
+                    body: `{\n\t"path": "/storage/emulated/0//",\n\t"content": ""\n}`,
+                    useBody: true
+                },
+                {
+                    name: "write-bytes",
+                    body: `{\n\t"path": "/storage/emulated/0//",\n\t"content": []\n}`,
+                    useBody: true
+                }
+            ],
+
+            platform: [
+                {
+                    name: "info",
+                    body: "",
+                    useBody: false
+                },
+                {
+                    name: "standard-paths",
+                    body: "",
+                    useBody: false
+                },
+                {
+                    name: "external-directory",
+                    body: "",
+                    useBody: false
+                },
+                {
+                    name: "downloads-directory",
+                    body: "",
+                    useBody: false
+                }
+            ]
+        }
+
+
+        async function sendApi() {
+            const url = `${defaultBaseUrl}/service/${groupList.value}/${servicesList.value}`;
+
+            const options = { method: "POST" };
+            if (useBody.checked) options.body = body.value.trim();
+
+            const startTime = performance.now();
+            let response = await fetch(url, options);
+            const endTime = performance.now();
+
+
+            status.innerHTML = response.status;
+            statusText.innerHTML = response.statusText;
+            type.innerHTML = response.type;
+            contentType.innerHTML = response.headers.get('Content-Type');
+            responseTime.innerHTML = `${Math.ceil(endTime - startTime)} MS`;
+
+            if (response.ok) result.innerHTML = await response.text();
+        }
+
+        function clearResponse() {
+            result.innerHTML = "";
+
+            status.innerHTML = "";
+            statusText.innerHTML = "";
+            type.innerHTML = "";
+            contentType.innerHTML = "";
+            responseTime.innerHTML = "";
+        }
+
+        function onGroupChanged() {
+            servicesList.innerHTML = "";
+
+            let services = groupsMap[groupList.value]
+
+            for (let i in services) {
+                let newOption = document.createElement("option");
+                newOption.innerHTML = services[i].name;
+                newOption.setAttribute("value", services[i].name);
+                servicesList.appendChild(newOption);
+            }
+
+            endpoint.innerHTML = `/service/${groupList.value}/${servicesList.value}`;
+            onServiceChanged();
+        }
+
+        function onServiceChanged() {
+            let selectedService = servicesList.selectedIndex;
+            body.value = groupsMap[groupList.value][selectedService].body;
+            useBody.checked = groupsMap[groupList.value][selectedService].useBody;
+            endpoint.innerHTML = `/service/${groupList.value}/${servicesList.value}`;
+        }
+
+        onGroupChanged()
+        onServiceChanged()
+    </script>
+</body>
+</html>
+

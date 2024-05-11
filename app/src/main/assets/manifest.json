@@ -1,0 +1,15 @@
+{
+  "name": "Mini Postman",
+  "launch": "/apis.html",
+  "databasePath": "/local_storage/database.db",
+  "preferencesPath": "/local_storage/preferences.db",
+  "requiredServices": ["sqlite", "preferences", "filesystem", "platform"],
+
+  "icon": {
+    "path": "/logo.png",
+    "background": [255, 255, 255, 255],
+    "borderRadius": 0.3,
+    "padding": 0.2
+  }
+}
+
